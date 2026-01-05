@@ -194,7 +194,8 @@ build_airgapped() {
     cp -r "$NVIM_DATA_DIR/lazy" "$TEMP_DIR/.local/share/nvim/"
 
     cd "$TEMP_DIR"
-    tar -czf nvim-bundle.tar.gz .config .local
+    # Create archive without macOS extended attributes
+    COPYFILE_DISABLE=1 tar -czf nvim-bundle.tar.gz .config .local
     mv nvim-bundle.tar.gz "$OUTPUT_DIR/"
     cd - > /dev/null
     rm -rf "$TEMP_DIR"
