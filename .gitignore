@@ -1,0 +1,16 @@
+# Plugin directory (will be downloaded by install script)
+lazy-lock.json
+
+# Bundles and archives
+*.tar.gz
+*.zip
+
+# Backup files
+*.backup.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Neovim runtime
+plugin/
