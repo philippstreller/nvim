@@ -259,6 +259,8 @@ if [ -f "$SCRIPT_DIR/nvim-linux64.tar.gz" ]; then
     else
         log_warn "Standard binary failed (GLIBC incompatibility detected)"
         USE_APPIMAGE=true
+        # Remove broken symlink
+        rm -f ~/.local/bin/nvim
     fi
 else
     USE_APPIMAGE=true
@@ -269,6 +271,8 @@ if [ "$USE_APPIMAGE" = true ]; then
     if [ -f "$SCRIPT_DIR/nvim.appimage" ]; then
         log_info "Using Neovim AppImage (compatible with older systems)..."
         mkdir -p ~/.local/bin
+        # Ensure we remove any existing nvim before copying
+        rm -f ~/.local/bin/nvim
         cp "$SCRIPT_DIR/nvim.appimage" ~/.local/bin/nvim
         chmod +x ~/.local/bin/nvim
         log_info "✓ AppImage installed"
