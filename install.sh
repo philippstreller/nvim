@@ -363,11 +363,19 @@ Then restart your shell or run `source ~/.bashrc` and start with `nvim`.
 ## Manual Installation
 
 ```bash
-# Install Neovim
+# Install Neovim (choose one method)
+
+# Method 1: Standard binary (newer systems with GLIBC 2.29+)
 mkdir -p ~/.local
 tar -xzf nvim-linux64.tar.gz -C ~/.local/
 mkdir -p ~/.local/bin
 ln -sf ~/.local/nvim-linux64/bin/nvim ~/.local/bin/nvim
+export PATH="$HOME/.local/bin:$PATH"
+
+# Method 2: AppImage (older systems like RHEL 8, CentOS 8)
+mkdir -p ~/.local/bin
+cp nvim.appimage ~/.local/bin/nvim
+chmod +x ~/.local/bin/nvim
 export PATH="$HOME/.local/bin:$PATH"
 
 # Install config
