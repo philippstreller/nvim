@@ -155,24 +155,34 @@ build_airgapped() {
     mkdir -p "$OUTPUT_DIR"
 
     # Step 1: Download Neovim binary for Linux x64
-    log_info "Downloading Neovim binary for Linux x64..."
-    NVIM_URL="https://github.com/neovim/neovim/releases/download/v0.10.3/nvim-linux64.tar.gz"
+    log_info "Downloading Neovim binaries for Linux x64..."
+    NVIM_TAR_URL="https://github.com/neovim/neovim/releases/download/v0.10.3/nvim-linux64.tar.gz"
+    NVIM_APPIMAGE_URL="https://github.com/neovim/neovim/releases/download/v0.10.3/nvim.appimage"
 
     if command -v curl &> /dev/null; then
-        curl -L "$NVIM_URL" -o "$OUTPUT_DIR/nvim-linux64.tar.gz"
+        curl -L "$NVIM_TAR_URL" -o "$OUTPUT_DIR/nvim-linux64.tar.gz"
+        curl -L "$NVIM_APPIMAGE_URL" -o "$OUTPUT_DIR/nvim.appimage"
     elif command -v wget &> /dev/null; then
-        wget "$NVIM_URL" -O "$OUTPUT_DIR/nvim-linux64.tar.gz"
+        wget "$NVIM_TAR_URL" -O "$OUTPUT_DIR/nvim-linux64.tar.gz"
+        wget "$NVIM_APPIMAGE_URL" -O "$OUTPUT_DIR/nvim.appimage"
     else
         log_error "Neither curl nor wget found. Cannot download Neovim binary."
         exit 1
     fi
 
     if [ ! -f "$OUTPUT_DIR/nvim-linux64.tar.gz" ] || [ ! -s "$OUTPUT_DIR/nvim-linux64.tar.gz" ]; then
-        log_error "Failed to download Neovim binary"
+        log_error "Failed to download Neovim tar.gz"
         exit 1
     fi
 
-    log_info "✓ Neovim binary downloaded"
+    if [ ! -f "$OUTPUT_DIR/nvim.appimage" ] || [ ! -s "$OUTPUT_DIR/nvim.appimage" ]; then
+        log_error "Failed to download Neovim AppImage"
+        exit 1
+    fi
+
+    chmod +x "$OUTPUT_DIR/nvim.appimage"
+
+    log_info "✓ Neovim binaries downloaded (tar.gz + AppImage)"
 
     # Step 2: Create plugin bundle
     log_info "Creating plugin bundle..."
@@ -229,17 +239,46 @@ if [[ "$(uname -s)" != "Linux" ]]; then
 fi
 
 log_info "Step 1/3: Installing Neovim binary..."
-if [ ! -f "$SCRIPT_DIR/nvim-linux64.tar.gz" ]; then
-    log_error "Neovim binary not found: $SCRIPT_DIR/nvim-linux64.tar.gz"
-    exit 1
+
+# Check GLIBC version to determine which binary to use
+GLIBC_VERSION=$(ldd --version 2>&1 | head -n1 | grep -oP '\d+\.\d+$' || echo "0.0")
+USE_APPIMAGE=false
+
+# Try standard binary first
+if [ -f "$SCRIPT_DIR/nvim-linux64.tar.gz" ]; then
+    mkdir -p ~/.local
+    log_info "Extracting Neovim to ~/.local..."
+    tar -xzf "$SCRIPT_DIR/nvim-linux64.tar.gz" -C ~/.local/ 2>/dev/null || true
+    mkdir -p ~/.local/bin
+    ln -sf ~/.local/nvim-linux64/bin/nvim ~/.local/bin/nvim
+
+    # Test if it works
+    export PATH="$HOME/.local/bin:$PATH"
+    if ~/.local/bin/nvim --version &>/dev/null; then
+        log_info "✓ Using standard Neovim binary"
+    else
+        log_warn "Standard binary failed (GLIBC incompatibility detected)"
+        USE_APPIMAGE=true
+    fi
+else
+    USE_APPIMAGE=true
 fi
 
-mkdir -p ~/.local
-log_info "Extracting Neovim to ~/.local..."
-tar -xzf "$SCRIPT_DIR/nvim-linux64.tar.gz" -C ~/.local/
-mkdir -p ~/.local/bin
-ln -sf ~/.local/nvim-linux64/bin/nvim ~/.local/bin/nvim
+# Fall back to AppImage if standard binary doesn't work
+if [ "$USE_APPIMAGE" = true ]; then
+    if [ -f "$SCRIPT_DIR/nvim.appimage" ]; then
+        log_info "Using Neovim AppImage (compatible with older systems)..."
+        mkdir -p ~/.local/bin
+        cp "$SCRIPT_DIR/nvim.appimage" ~/.local/bin/nvim
+        chmod +x ~/.local/bin/nvim
+        log_info "✓ AppImage installed"
+    else
+        log_error "Neither standard binary nor AppImage could be installed"
+        exit 1
+    fi
+fi
 
+# Ensure PATH is set
 if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
     log_warn "~/.local/bin is not in PATH. Add to ~/.bashrc:"
     echo '    export PATH="$HOME/.local/bin:$PATH"'
@@ -303,9 +342,10 @@ Complete offline installation package for Linux x64 systems.
 
 ## Contents
 
-- `nvim-linux64.tar.gz` - Neovim v0.10.3 binary
+- `nvim-linux64.tar.gz` - Neovim v0.10.3 binary (requires GLIBC 2.29+)
+- `nvim.appimage` - Neovim v0.10.3 AppImage (for older systems like RHEL 8)
 - `nvim-bundle.tar.gz` - Config + pre-installed plugins
-- `INSTALL.sh` - Automated installer
+- `INSTALL.sh` - Automated installer (auto-detects which binary to use)
 - `README.md` - This file
 
 ## Quick Start
